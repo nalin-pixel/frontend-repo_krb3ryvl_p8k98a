@@ -1,71 +1,91 @@
+import { useEffect, useMemo, useState } from 'react'
+import Hero from './components/Hero'
+import ThemeToggle from './components/ThemeToggle'
+import Registration from './components/Registration'
+import AuthAndVote from './components/AuthAndVote'
+import Admin from './components/Admin'
+
 function App() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+  const [currentElection, setCurrentElection] = useState(null)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    // Load latest election
+    fetch(`${backendUrl}/api/elections`).then(r=>r.json()).then(d=> {
+      const latest = (d.items || [])[0]
+      setCurrentElection(latest)
+    }).catch(()=>{})
+  }, [backendUrl])
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.05),transparent_50%)]"></div>
-
-      <div className="relative min-h-screen flex items-center justify-center p-8">
-        <div className="max-w-2xl w-full">
-          {/* Header with Flames icon */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center mb-6">
-              <img
-                src="/flame-icon.svg"
-                alt="Flames"
-                className="w-24 h-24 drop-shadow-[0_0_25px_rgba(59,130,246,0.5)]"
-              />
-            </div>
-
-            <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-              Flames Blue
-            </h1>
-
-            <p className="text-xl text-blue-200 mb-6">
-              Build applications through conversation
-            </p>
-          </div>
-
-          {/* Instructions */}
-          <div className="bg-slate-800/50 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 shadow-xl mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Describe your idea</h3>
-                <p className="text-blue-200/80 text-sm">Use the chat panel on the left to tell the AI what you want to build</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Watch it build</h3>
-                <p className="text-blue-200/80 text-sm">Your app will appear in this preview as the AI generates the code</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-lg flex items-center justify-center font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">Refine and iterate</h3>
-                <p className="text-blue-200/80 text-sm">Continue the conversation to add features and make changes</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="text-center">
-            <p className="text-sm text-blue-300/60">
-              No coding required • Just describe what you want
-            </p>
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#0a0f1f] text-white' : 'bg-slate-50 text-slate-900'}`}>
+      <header className="sticky top-0 z-20 backdrop-blur bg-transparent/60 border-b border-white/10">
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="font-bold text-lg">IrisVote ZK</div>
+          <div className="flex items-center gap-3">
+            <a href="#vote" className="px-3 py-2 rounded-lg bg-white/10 text-white">Vote</a>
+            <a href="#admin" className="px-3 py-2 rounded-lg bg-white/10 text-white">Admin</a>
+            <ThemeToggle theme={theme} setTheme={setTheme} />
           </div>
         </div>
-      </div>
+      </header>
+
+      <main>
+        <Hero theme={theme} onGetStarted={() => document.getElementById('register')?.scrollIntoView({ behavior: 'smooth'})} />
+
+        <section id="how" className="container mx-auto px-6 py-16 grid md:grid-cols-3 gap-6">
+          {[{
+            title: 'Register', desc: 'Enroll with ID. Iris features stay on your device; only a commitment and your public key are stored.'
+          },{
+            title: 'Authenticate', desc: 'During voting, re-scan iris and generate a zero-knowledge proof locally to unlock the ballot.'
+          },{
+            title: 'Vote on-chain', desc: 'Your encrypted vote is signed and recorded on blockchain with an anonymous identifier.'
+          }].map((c, i) => (
+            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <div className="text-sky-300 font-semibold">Step {i+1}</div>
+              <div className="text-xl font-bold mt-2">{c.title}</div>
+              <p className="opacity-80 mt-2 text-sm">{c.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        <section id="register" className="container mx-auto px-6 py-16 grid lg:grid-cols-2 gap-6">
+          <Registration backendUrl={backendUrl} onRegistered={()=>{}} />
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white">
+            <h3 className="text-xl font-semibold mb-4">Current Election</h3>
+            {currentElection ? (
+              <div>
+                <div className="text-lg font-bold">{currentElection.title}</div>
+                <ul className="mt-3 list-disc pl-5 opacity-90">
+                  {(currentElection.candidates||[]).map((c,i)=>(<li key={i}>{c.name} {c.party?`(${c.party})`:''}</li>))}
+                </ul>
+              </div>
+            ) : (
+              <p className="opacity-80">No election yet. Create one in Admin below.</p>
+            )}
+          </div>
+        </section>
+
+        <section id="vote" className="container mx-auto px-6 pb-16">
+          <AuthAndVote backendUrl={backendUrl} election={currentElection} onAuthenticated={()=>{}} onVoted={()=>{}} />
+        </section>
+
+        <section id="admin" className="container mx-auto px-6 pb-24">
+          <Admin backendUrl={backendUrl} />
+        </section>
+      </main>
+
+      <footer className="border-t border-white/10">
+        <div className="container mx-auto px-6 py-8 text-sm opacity-70">
+          Built for demo: ZK + Iris + Blockchain. No biometrics are uploaded; proofs simulated.
+        </div>
+      </footer>
     </div>
   )
 }
